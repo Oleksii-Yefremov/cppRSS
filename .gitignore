@@ -70,3 +70,6 @@ Testing/
 
 # vscode user settings
 .vscode/
+
+# local data samples for quick testing
+LocalDataSample/
