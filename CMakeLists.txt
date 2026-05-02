@@ -27,3 +27,20 @@ endif()
 
 add_executable(cppRSS main.cpp)
 target_link_libraries(cppRSS PRIVATE cpr::cpr)
+
+# CPR / libcurl are built as DLLs under FetchContent; MSVC does not copy them next to the exe.
+# Without this, cppRSS.exe exits with 0xc0000135 (STATUS_DLL_NOT_FOUND) when run or debugged.
+if(WIN32)
+  add_custom_command(
+    TARGET cppRSS
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:cpr> $<TARGET_FILE_DIR:cppRSS>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libcurl_shared>
+            $<TARGET_FILE_DIR:cppRSS>)
+endif()
+if(WIN32 AND TARGET zlib)
+  add_custom_command(
+    TARGET cppRSS
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:zlib> $<TARGET_FILE_DIR:cppRSS>)
+endif()
