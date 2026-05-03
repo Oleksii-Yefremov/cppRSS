@@ -1,41 +1,59 @@
+#include <algorithm>
+#include <cctype>
+#include <fstream>
 #include <iostream>
 #include <string>
 
 #include <cpr/cpr.h>
 
-static constexpr const char Url[] = "https://example.com";
-
-// Attempts a GET against a fixed URL and prints diagnostics to stderr on failure.
-void TryReachHardcodedUrl()
+void Trim(std::string& s)
 {
-	cpr::Response HttpResponse = cpr::Get(cpr::Url{Url}, cpr::Timeout{15000});
+	const auto NotSpace = [](unsigned char ch) { return !std::isspace(ch); };
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(), NotSpace));
+	s.erase(std::find_if(s.rbegin(), s.rend(), NotSpace).base(), s.end());
+}
 
-	if (HttpResponse.error)
+constexpr const char* kUrlsFilePath = R"(LocalDataSample\urls.txt)";
+
+void TryReachUrl(std::string url)
+{
+	cpr::Response r = cpr::Get(cpr::Url{std::move(url)}, cpr::Timeout{15000});	
+
+	if (!r.error && r.status_code >= 200 && r.status_code <= 299)
 	{
-		std::cout << "Error reaching " << Url << ": " << HttpResponse.error.message << " ("<< std::to_string(HttpResponse.error.code) << ")\n";
+		std::cout << "OK\n";
 		return;
 	}
 
-	if (HttpResponse.status_code < 200 || HttpResponse.status_code > 299)
+	if (r.error.code != cpr::ErrorCode::OK)
 	{
-		std::cout << "Error reaching " << Url << ": HTTP " << HttpResponse.status_code;
-		if (!HttpResponse.status_line.empty())
-		{
-			std::cout << " " << HttpResponse.status_line;
-		}
-		std::cout << '\n';
+		std::cout << std::to_string(static_cast<long>(r.error.code)) << '\n';
+		return;
 	}
-	if (!HttpResponse.error)
-	{
-		std::cout << "Response: " << HttpResponse.text << std::endl;
-	}	
+
+	std::cout << std::to_string(r.status_code) << '\n';	
 }
+
 
 int main()
 {
-	std::cout << "Program started" << std::endl;
-	TryReachHardcodedUrl();
-	std::cout << "Press any key to exit" << std::endl;
-	std::cin.get();
+	std::ifstream urlsFile(kUrlsFilePath);
+	if (!urlsFile)
+	{
+		std::cerr << "Failed to open " << kUrlsFilePath << '\n';
+		return 1;
+	}
+
+	std::string line;
+	while (std::getline(urlsFile, line))
+	{
+		Trim(line);
+		if (line.empty())
+		{
+			continue;
+		}
+		TryReachUrl(line);
+	}
+
 	return 0;
 }
